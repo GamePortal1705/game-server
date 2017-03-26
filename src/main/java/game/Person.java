@@ -7,21 +7,28 @@ import java.util.UUID;
  * @version : 3/18/17
  */
 public class Person {
-    private static final int FOLK = 0;
-    private static final int WOLF = 0;
+    static final int FOLK = 0;
+    static final int WOLF = 1;
 
-    private int id;
-    private UUID sessionID;
+    static final int ALIVE = 0;
+    static final int DEAD  = 1;
+
+    private String playerName;
+    private int    id;
+    private UUID   sessionID;
+    private int    status;
 
     private int role;
 
     public Person() {
     }
 
-    public Person(int id, UUID sessionID) {
+    public Person(int id, UUID sessionID, String playerName) {
         this.id = id;
         this.sessionID = sessionID;
+        this.playerName = playerName;
         this.role = FOLK;
+        this.status = ALIVE;
     }
 
     public UUID getSessionID() {
@@ -34,6 +41,18 @@ public class Person {
 
     public int getRole() {
         return role;
+    }
+
+    public String getPlayerName() {
+        return playerName;
+    }
+
+    public void setStatus(int status) {
+        this.status = status;
+    }
+
+    public boolean isAlive() {
+        return this.status == Person.ALIVE;
     }
 
     public Wolf decorateToWolf() {

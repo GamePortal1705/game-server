@@ -18,7 +18,7 @@ public class Wolf extends Person {
         this.person.state();
     }
 
-    public void kill() {
+    public void kill(Person player) {
         //TODO
     }
 }
