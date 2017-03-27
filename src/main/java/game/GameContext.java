@@ -173,6 +173,7 @@ public class GameContext {
                     // notify others who is making statement
                     Message<String> tmpMsg = Message.createBroadcastMessage(null);
                     tmpMsg.setPlayerName(person.getPlayerName());
+                    tmpMsg.setId(person.getId());
                     server.getBroadcastOperations().sendEvent("makeStatement", server.getClient(person.getSessionID()), tmpMsg);
 
 
