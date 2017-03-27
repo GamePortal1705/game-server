@@ -10,7 +10,7 @@ public class GameLauncher {
     public static void main(String[] args) throws InterruptedException {
         Configuration config = new Configuration();
         config.setHostname("localhost");
-        config.setPort(9092);
+        config.setPort(3000);
 
         final SocketIOServer server = new SocketIOServer(config);
 

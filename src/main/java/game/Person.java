@@ -62,4 +62,15 @@ public class Person {
 
     public void state() {
     }
+
+    @Override
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        sb.append('[').append("id: ").append(id).append(", ");
+        sb.append("playerName: ").append(playerName).append(", ");
+        sb.append("sessionID: ").append(sessionID).append(", ");
+        sb.append("role: ").append(role == FOLK ? "Villager" : "Wolf").append(", ");
+        sb.append("status: ").append(status == ALIVE ? "alive" : "dead").append(']');
+        return sb.toString();
+    }
 }

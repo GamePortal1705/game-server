@@ -1,5 +1,7 @@
 package game;
 
+import java.util.UUID;
+
 /**
  * Wolf is <b>Decorator</b> of Person
  *
@@ -18,7 +20,28 @@ public class Wolf extends Person {
         this.person.state();
     }
 
+    @Override
+    public UUID getSessionID() {
+        return person.getSessionID();
+    }
+
+    @Override
+    public int getId() {
+        return person.getId();
+    }
+
+    @Override
+    public int getRole() {
+        return person.getRole();
+    }
+
+    @Override
+    public String getPlayerName() {
+        return person.getPlayerName();
+    }
+
+    @Deprecated
     public void kill(Person player) {
-        //TODO
+
     }
 }

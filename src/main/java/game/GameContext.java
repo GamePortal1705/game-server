@@ -1,8 +1,5 @@
 package game;
 
-import com.corundumstudio.socketio.AckCallback;
-import com.corundumstudio.socketio.BroadcastAckCallback;
-import com.corundumstudio.socketio.SocketIOClient;
 import com.corundumstudio.socketio.SocketIOServer;
 import io.DispatchRoleMsg;
 import io.JoinGameMsg;
@@ -25,6 +22,9 @@ public class GameContext {
     private final List<Person>   players;
     private final List<Wolf>     wolves;
 
+    private final Set<UUID> sessionIDSet;
+    private final Map<UUID, Person> sessionIdToPlayer;
+
     private Logger logger = LoggerFactory.getLogger(GameContext.class);
 
     private Status status;
@@ -40,6 +40,8 @@ public class GameContext {
         this.server = server;
         this.players = new ArrayList<>(maxNumOfPerson);
         this.wolves = new ArrayList<>();
+        this.sessionIDSet = new HashSet<>();
+        this.sessionIdToPlayer = new HashMap<>();
 
         this.status = Status.Init;
     }
@@ -58,7 +60,7 @@ public class GameContext {
 
         for (Person p : this.players) {
             this.server.getClient(p.getSessionID())
-                       .sendEvent("dispatchRole", new Message<>(p.getPlayerName(), p.getId(),
+                       .sendEvent("dispatchRole", new Message<>(p.getId(), p.getPlayerName(),
                                                                 p.getSessionID(),
                                                                 new DispatchRoleMsg(p.getRole(), this.numOfPerson)));
         }
@@ -72,22 +74,28 @@ public class GameContext {
 
         this.status = Status.Wait;
 
-        this.server.addEventListener("joinGame", Message.class, ((client, data, ackSender) -> {
+        this.server.addEventListener("joinGame", Message.class, (client, data, ackSender) -> {
             synchronized (this.players) {
-                if (this.players.size() < maxNumOfPerson) {
+                if (!sessionIDSet.contains(client.getSessionId()) &&
+                    this.players.size() < maxNumOfPerson) {
+
                     Person p = new Person(numOfPerson++,            // ID
                                           client.getSessionId(),    // session ID
                                           data.getPlayerName());    // player name
                     this.players.add(p);
-                    logger.info("Player number: " + numOfPerson);
-                    client.sendEvent("joinGame", new Message<>(data.getPlayerName(), p.getId(),
+                    this.sessionIDSet.add(client.getSessionId());
+                    this.sessionIdToPlayer.put(client.getSessionId(), p);
+
+                    logger.info("Player Info " + p.toString());
+
+                    client.sendEvent("joinGame", new Message<>(p.getId(), data.getPlayerName(),
                                                                client.getSessionId(), new JoinGameMsg(true)));
                 } else {
-                    client.sendEvent("joinGame", new Message<>(data.getPlayerName(), null,
+                    client.sendEvent("joinGame", new Message<>(null, data.getPlayerName(),
                                                                client.getSessionId(), new JoinGameMsg(false)));
                 }
             }
-        }));
+        });
 
         // wait until enough users to start the game
         while (numOfPerson < maxNumOfPerson) {
@@ -99,7 +107,6 @@ public class GameContext {
         dispatchRoles();
 
 
-        //TODO night and daytime logic
         int round = 0;
         List<Integer> toKillIds = new ArrayList<>();
         Map<Integer, Integer> killCounter = new HashMap<>();
@@ -112,65 +119,64 @@ public class GameContext {
 
             toKillIds.clear();
             killCounter.clear();
+
+
+
+            logger.info("Bind listener on who to kill");
+            addKillListener(toKillIds, killCounter);
             logger.info("Ask wolves to kill people");
             for (Wolf wolf : this.wolves) {
                 server.getClient(wolf.getSessionID())
-                      .sendEvent("night", new AckCallback<Integer>(Integer.class) {
-                          @Override
-                          public void onSuccess(Integer result) {
-                              toKillIds.add(result);
-                              killCounter.put(result, killCounter.getOrDefault(result, 0) + 1);
-                          }
-                      }, new Message<>(wolf.getPlayerName(), wolf.getId(),
-                                       wolf.getSessionID(), round));
+                      .sendEvent("night", new Message<>(wolf.getId(), wolf.getPlayerName(), wolf.getSessionID(), round));
             }
 
             logger.info("Ask villagers to wait");
             for (Person person : this.players) {
                 if (person.getRole() != Person.WOLF) {
-                    this.server.getClient(person.getSessionID())
-                               .sendEvent("night", new Message<>(person.getPlayerName(), person.getId(),
-                                                                 person.getSessionID(), round));
+                    server.getClient(person.getSessionID())
+                          .sendEvent("night", new Message<>(person.getId(), person.getPlayerName(),
+                                                            person.getSessionID(), round));
                 }
             }
 
             while (toKillIds.size() < numOfAliveWolf) {
                 TimeUnit.MILLISECONDS.sleep(SLEEP_TIME);
             }
-
             int killed = killByVote(killCounter);
-            logger.info("ID: " + killed + " is killed by wolves");
+            removeKillListener();
+            logger.info("ID: " + killed + " is killed by wolves at round " + round);
+
 
             this.status = Status.Notifying;
             sendSystemMessage("Round: " + round + "Time: " + this.status.msg);
-            // assume all clients will receive kill decision message
-            this.server.getBroadcastOperations()
-                       .sendEvent("killDecision", Message.createBroadcastMessage(killed));
+            server.getBroadcastOperations()
+                  .sendEvent("killDecision", Message.createBroadcastMessage(killed));
+
 
             this.status = Status.Stating;
             sendSystemMessage("Round: " + round + "Time: " + this.status.msg);
 
             Deque<Integer> playersFinishedStatement = new ArrayDeque<>();
+            server.addEventListener("finishStatement", Message.class, (client, data, ackSender) -> {
+                int finishedID = data.getId();
+                playersFinishedStatement.offer(finishedID);
+            });
             for (Person person : players) {
                 if (person.isAlive()) {
+                    // send message to who will make statement
                     server.getClient(person.getSessionID())
-                          .sendEvent("makeStatement", new AckCallback<Boolean>(Boolean.class, 60 + 20) {
-                              @Override
-                              public void onSuccess(Boolean result) {
-                                  if (result) {
-                                      playersFinishedStatement.offer(person.getId());
-                                  }
-                              }
+                          .sendEvent("makeStatement", new Message<String>(person.getId(),
+                                                                          person.getPlayerName(),
+                                                                          person.getSessionID(),
+                                                                          null));
 
-                              @Override
-                              public void onTimeout() {
-                                  playersFinishedStatement.offer(person.getId());
-                              }
-                          }, new Message<String>(person.getPlayerName(), person.getId(), person.getSessionID(), null));
-
+                    // notify others who is making statement
                     Message<String> tmpMsg = Message.createBroadcastMessage(null);
                     tmpMsg.setPlayerName(person.getPlayerName());
                     server.getBroadcastOperations().sendEvent("makeStatement", server.getClient(person.getSessionID()), tmpMsg);
+
+
+                    // wait until current person finish making statement
                     while (playersFinishedStatement.isEmpty() ||
                            playersFinishedStatement.peekLast() != person.getId()) {
                         TimeUnit.MILLISECONDS.sleep(SLEEP_TIME);
@@ -178,21 +184,15 @@ public class GameContext {
                 }
             }
 
+
             this.status = Status.Voting;
             sendSystemMessage("Round: " + round + "Time: " + this.status.msg);
+
             toKillIds.clear();
             killCounter.clear();
+            addKillListener(toKillIds, killCounter);
             server.getBroadcastOperations()
-                  .sendEvent("vote",
-                             Message.createBroadcastMessage(null),
-                             new BroadcastAckCallback<Integer>(Integer.class) {
-                                 @Override
-                                 public void onClientSuccess(SocketIOClient client, Integer result) {
-                                     logger.info("sessionID: " + client.getSessionId() + " killed " + result);
-                                     toKillIds.add(result);
-                                     killCounter.put(result, killCounter.getOrDefault(result, 0) + 1);
-                                 }
-                             });
+                  .sendEvent("vote", Message.createBroadcastMessage(null));
             while (toKillIds.size() != numOfAliveWolf + numOfAliveFolk) {
                 TimeUnit.MILLISECONDS.sleep(SLEEP_TIME);
             }
@@ -200,13 +200,31 @@ public class GameContext {
             logger.info("ID: " + killed + " is killed by vote");
             server.getBroadcastOperations()
                   .sendEvent("killDecision", Message.createBroadcastMessage(killed));
-
+            removeKillListener();
         }   // end of while loop
 
         this.status = Status.End;
         sendSystemMessage("After " + round + ", " + this.status.msg);
         onGameOver();
     }
+
+    private void addKillListener(List<Integer> toKillIds, Map<Integer, Integer> killCounter) {
+        server.addEventListener("kill", Message.class, (client, data, ackSender) -> {
+            Message<Integer> msg = (Message<Integer>) data;
+            int toKillId = msg.getData();
+
+            logger.info("clientID " + sessionIdToPlayer.get(client.getSessionId()).getId() +
+                        "choose to kill id: " + toKillId);
+
+            toKillIds.add(toKillId);
+            killCounter.put(toKillId, killCounter.getOrDefault(toKillId, 0) + 1);
+        });
+    }
+
+    private void removeKillListener() {
+        server.removeAllListeners("kill");
+    }
+
 
     private void sendSystemMessage(String sysInfo) {
         server.getBroadcastOperations()
@@ -222,8 +240,8 @@ public class GameContext {
                 id = entry.getKey();
             }
         }
-
         Person p = this.players.get(id);
+        p.setStatus(Person.DEAD);
         if (p.getRole() == Person.FOLK) {
             numOfAliveFolk--;
         } else {
@@ -236,7 +254,7 @@ public class GameContext {
         return numOfAliveFolk == 0 || numOfAliveWolf == 0;
     }
 
-    public void onGameOver() {
+    private void onGameOver() {
         this.server.stop();
     }
 
