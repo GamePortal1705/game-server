@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <title>Demo Chat</title>
+    <link href="bootstrap.css" rel="stylesheet">
+    <style>
+        body {
+            padding: 20px;
+        }
+
+        #console {
+            height: 400px;
+            overflow: auto;
+        }
+
+        .username-msg {
+            color: orange;
+        }
+
+        .connect-msg {
+            color: green;
+        }
+
+        .disconnect-msg {
+            color: red;
+        }
+
+        .send-msg {
+            color: #888
+        }
+    </style>
+
+
+    <script src="js/socket.io/socket.io.js"></script>
+    <script src="js/moment.min.js"></script>
+    <script src="http://code.jquery.com/jquery-1.10.1.min.js"></script>
+
+    <script>
+        var userName = 'user' + Math.floor((Math.random() * 1000) + 1);
+        var socket = io.connect('http://localhost:3000');
+        var userID;
+        var sessionID;
+
+        socket.on('connect', function () {
+            console.log(userName + " connected");
+            output('<span class="connect-msg">Client has connected to the server!</span>');
+        });
+
+        socket.on('disconnect', function () {
+            console.log("connected");
+            output('<span class="disconnect-msg">The client has disconnected!</span>');
+        });
+
+        socket.on('systemInfo', function (message) {
+            output('<span class="username-msg"> system info</span> ' + message.data);
+        });
+
+
+        socket.on('joinGame', function(message) {
+            output('<span class="username-msg">' + message.playerName + ':</span> ' +
+                message.id + ' ' + message.sessionId + ' ' + message.data.success);
+            userID = message.id;
+            sessionID = message.sessionId;
+        });
+
+        socket.on('night', function(message) {
+            output('<span class="username-msg">' + message.playerName + ':</span> ' +
+                    message.id + ' ' + message.sessionId + ' ' + message.data);
+        });
+
+        socket.on("killDecision", function (message) {
+            output('<span class="username-msg"> kill Decision:</span> dead player ID is' + message.data);
+        });
+
+        socket.on("makeStatement", function (message) {
+            output('<span class="username-msg">current state player name' + message.playerName + ':</span> ' +
+                message.id);
+        });
+
+        socket.on("vote", function (message) {
+            output('<span class="username-msg"> broadcast vote message</span>');
+        });
+
+        function joinGame() {
+            var jsonObj = {
+                playerName: userName
+            };
+            socket.emit("joinGame", jsonObj);
+        }
+
+        function kill(id) {
+            var jsonObj = {
+                playerName: userName,
+                data: id
+            };
+            socket.emit("kill", jsonObj);
+        }
+
+        function finish_state() {
+            var jsonObj = {
+                playerName: userName,
+                id: userID
+            };
+            socket.emit("finishStatement", jsonObj);
+        }
+
+
+        function output(message) {
+            var currentTime = "<span class='time'>" + moment().format('HH:mm:ss.SSS') + "</span>";
+            var element = $("<div>" + currentTime + " " + message + "</div>");
+            $('#console').prepend(element);
+        }
+    </script>
+</head>
+
+<body>
+<h1>Netty-socketio Demo Chat</h1>
+<br/>
+<div id="console" class="well">
+</div>
+<button type="button" onClick="joinGame()" class="btn" id="join">Join Game</button>
+<button type="button" onClick="kill(1)" class="btn" id="kill">Test Kill</button>
+<button type="button" onClick="finish_state()" class="btn" id="state">Test Statement</button>
+
+<!-- 	<div id="console" class="well">
+	</div>
+
+	<form class="well form-inline" onsubmit="return false;">
+		<input id="msg" class="input-xlarge" type="text" placeholder="Type something..."/>
+		<button type="button" onClick="sendMessage()" class="btn" id="send">Send</button>
+		<button type="button" onClick="sendDisconnect()" class="btn">Disconnect</button>
+	</form>
+ -->
+
+
+</body>
+
+</html>
