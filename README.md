@@ -1,6 +1,14 @@
 # GamePortal backend server
 
-## server side event specification
+## Usage
+
+~~~bash
+$ mvn clean 
+$ mvn package
+$ java -jar ./target/game-server-1.0.0-SNAPSHOT-jar-with-dependencies.jar NUM_OF_PLAYERS
+~~~
+
+## Server Side Event Specification
 
 EventName  | Type | Description
 ------------- | ------------- | ------------- 
