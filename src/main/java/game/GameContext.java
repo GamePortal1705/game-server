@@ -53,19 +53,27 @@ public class GameContext {
         int numOfWolves = maxNumOfPerson / 4;
 
         if (numOfWolves == 0) numOfWolves = 1;
-        Collections.shuffle(this.players);
+//        Collections.shuffle(this.players);
+//
+//        for (int i = 0; i < numOfWolves; i++) {
+//            this.wolves.add(players.get(i).decorateToWolf());
+//        }
 
-        for (int i = 0; i < numOfWolves; i++) {
-            this.wolves.add(players.get(i).decorateToWolf());
-        }
+        int _villager = 0;
+        int _wolf = 1;
+        this.wolves.add(players.get(_wolf).decorateToWolf());
 
-        (this.players).sort(Comparator.comparingInt(Person::getId));
+//        (this.players).sort(Comparator.comparingInt(Person::getId));
 
         for (Person p : this.players) {
             this.server.getClient(p.getSessionID())
                        .sendEvent("dispatchRole", new Message<>(p.getId(), p.getPlayerName(),
                                                                 p.getSessionID(),
-                                                                new DispatchRoleMsg(p.getRole(), this.numOfPerson)));
+                                                                new DispatchRoleMsg(p.getRole(),
+                                                                                    this.numOfPerson,
+                                                                                    p.getRole() == Person.FOLK ? "villager" : "wolf")));
+
+            logger.info("current id " + p.getId() + "; role " + (p.getRole() == 0 ? "Villager" : "Wolf"));
         }
 
         this.numOfAliveWolf = numOfWolves;

@@ -8,9 +8,20 @@ public class DispatchRoleMsg {
     private int role;
     private int numOfPlayers;
 
-    public DispatchRoleMsg(int role, int numOfPlayers) {
+    private String roleString;
+
+    public DispatchRoleMsg(int role, int numOfPlayers, String roleString) {
         this.role = role;
         this.numOfPlayers = numOfPlayers;
+        this.roleString = roleString;
+    }
+
+    public String getRoleString() {
+        return roleString;
+    }
+
+    public void setRoleString(String roleString) {
+        this.roleString = roleString;
     }
 
     public int getRole() {
