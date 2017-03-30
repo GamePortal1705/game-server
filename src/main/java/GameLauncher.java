@@ -14,7 +14,12 @@ public class GameLauncher {
     private static Logger logger = LoggerFactory.getLogger(GameLauncher.class);
 
     public static void main(String[] args) throws InterruptedException {
-        if (args.length != 1) throw new IllegalArgumentException();
+        if (args.length != 1) {
+//            throw new IllegalArgumentException();
+            logger.error("Illegal arguments\n\tUsage: java -jar xx.jar NUM_OF_PLAYERS");
+            return;
+        }
+
         int N = Integer.parseInt(args[0]);
 
         logger.info("Number of players: " + N);

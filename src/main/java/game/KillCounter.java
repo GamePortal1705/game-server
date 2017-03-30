@@ -4,6 +4,8 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
+ * A thread safe wrapper of HashMap to keep decisions of wolves or all players.
+ *
  * @author : Siyadong Xiong (sx225@cornell.edu)
  * @version : 3/28/17
  */

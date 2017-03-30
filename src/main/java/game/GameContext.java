@@ -2,6 +2,7 @@ package game;
 
 import com.corundumstudio.socketio.SocketIOServer;
 import io.DispatchRoleMsg;
+import io.GameOverMsg;
 import io.JoinGameMsg;
 import io.Message;
 import org.slf4j.Logger;
@@ -9,6 +10,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 /**
  * @author : Siyadong Xiong (sx225@cornell.edu)
@@ -118,7 +120,7 @@ public class GameContext {
 
         int round = 0;
 
-        while (!isGameOver()) {
+        while (isGameOver() < 0) {
 
             round++;
 
@@ -130,20 +132,7 @@ public class GameContext {
             addKillListener();
             logger.info("Ask wolves to kill people and villagers to wait");
             server.getBroadcastOperations()
-                  .sendEvent("night", Message.createBroadcastMessage("round: " + round));
-//            for (Wolf wolf : this.wolves) {
-//                server.getClient(wolf.getSessionID())
-//                      .sendEvent("night", new Message<>(wolf.getId(), wolf.getPlayerName(), wolf.getSessionID(), "round: " + round));
-//            }
-//
-//            logger.info("Ask villagers to wait");
-//            for (Person person : this.players) {
-//                if (person.getRole() != Person.WOLF) {
-//                    server.getClient(person.getSessionID())
-//                          .sendEvent("night", new Message<>(person.getId(), person.getPlayerName(),
-//                                                            person.getSessionID(), "round: " + round));
-//                }
-//            }
+                  .sendEvent("night", Message.createBroadcastMessage(buildAliveMap(this.players)));
 
             while (killCounter.size() < numOfAliveWolf) {
                 TimeUnit.MILLISECONDS.sleep(SLEEP_TIME);
@@ -153,6 +142,9 @@ public class GameContext {
             logger.info("[Round " + round + "] Player " + killed + " is killed by wolves");
             /* ----    Night End     ------*/
 
+            if (isGameOver() >= 0) {
+                break;
+            }
 
             /* ----    Daytime: notifying who's dead
                                 --> make statement in turn
@@ -198,7 +190,7 @@ public class GameContext {
 
             addKillListener();
             server.getBroadcastOperations()
-                  .sendEvent("vote", Message.createBroadcastMessage(null));
+                  .sendEvent("vote", Message.createBroadcastMessage(buildAliveMap(this.players)));
             while (killCounter.size() != numOfAliveWolf + numOfAliveFolk) {
                 TimeUnit.MILLISECONDS.sleep(SLEEP_TIME);
             }
@@ -213,6 +205,10 @@ public class GameContext {
 
         this.status = Status.End;
         sendSystemMessage("After " + round + ", " + this.status.msg);
+
+        server.getBroadcastOperations()
+              .sendEvent("gameOver", Message.createBroadcastMessage(new GameOverMsg(this.players, isGameOver())));
+
         onGameOver();
     }
 
@@ -256,8 +252,20 @@ public class GameContext {
               .sendEvent("systemInfo", Message.createBroadcastMessage(sysInfo));
     }
 
-    private boolean isGameOver() {
-        return numOfAliveFolk == 0 || numOfAliveWolf == 0;
+    // return -1 if game is not over, 1 if wolves win, and 0 if folks win
+    private int isGameOver() {
+        if (numOfAliveWolf > numOfAliveFolk) {
+            return Person.WOLF;
+        } else if (numOfAliveWolf == 0) {
+            return Person.FOLK;
+        } else {
+            return -1;
+        }
+    }
+
+    private static Map<Integer, Boolean> buildAliveMap(List<Person> players) {
+        return players.stream()
+                      .collect(Collectors.toMap(Person::getId, Person::isAlive));
     }
 
     private void onGameOver() {
