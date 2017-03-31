@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import sun.misc.Signal;
 
+import java.util.concurrent.TimeUnit;
+
 /**
  * @author : Siyadong Xiong (sx225@cornell.edu)
  * @version : 3/18/17
@@ -38,5 +40,8 @@ public class GameLauncher {
 
         GameContext game = new GameContext(N, server);
         game.startGame();
+        while (true) {
+            TimeUnit.MILLISECONDS.sleep(1000);
+        }
     }
 }

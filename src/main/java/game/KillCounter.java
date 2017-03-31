@@ -50,13 +50,18 @@ public class KillCounter {
         }
         int max = -1;
         int id = -1;
+        boolean tie = false;
         for (Map.Entry<Integer, Integer> entry : killCounter.entrySet()) {
-            if (entry.getValue() > max) {
+            int val = entry.getValue();
+            if (val > max) {
+                tie = false;
                 max = entry.getValue();
                 id = entry.getKey();
+            } else if (val == max) {
+                tie = true;
             }
         }
 
-        return id;
+        return tie ? -1 : id;
     }
 }

@@ -7,6 +7,33 @@ import java.util.UUID;
  * @version : 3/18/17
  */
 public class Person {
+
+    // TODO
+    /* use Role enum to support more roles */
+    enum Role {
+        FOLK(0),
+        WOLF(1),
+        FORESEER(3);
+
+        private int val;
+        Role(int val) {
+            this.val = val;
+        }
+        int getVal() {
+            return val;
+        }
+
+        @Override
+        public String toString() {
+            switch (val) {
+                case 0: return "Folk";
+                case 1: return "Wolf";
+                case 2: return "Foreseer";
+                default: return "";
+            }
+        }
+    }
+
     static final int FOLK = 0;
     static final int WOLF = 1;
 
